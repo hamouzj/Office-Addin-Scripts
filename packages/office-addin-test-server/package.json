@@ -1,7 +1,11 @@
 {
-    "name": "office-addin-test-server",
+    "name": "@infor/office-addin-test-server",
     "version": "1.2.0",
     "description": "Creates a local web server for testing Office Add-ins and receiving test results.",
+    "publishConfig": {
+        "scope": "@infor",
+        "registry": "http://npm.infor.com:4873/"
+    },
     "main": "./lib/main.js",
     "scripts": {
         "build": "rimraf lib && concurrently \"tsc -p tsconfig.json\"",

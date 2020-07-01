@@ -1,7 +1,11 @@
 {
-  "name": "office-addin-debugging",
+  "name": "@infor/office-addin-debugging",
   "version": "4.3.0",
   "description": "For debugging Office Add-ins.",
+  "publishConfig": {
+    "scope": "@infor",
+    "registry": "http://npm.infor.com:4873/"
+  },
   "main": "./lib/main.js",
   "scripts": {
     "build": "rimraf lib && concurrently \"tsc -p tsconfig.json\"",

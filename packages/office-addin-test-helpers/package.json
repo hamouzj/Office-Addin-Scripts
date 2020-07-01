@@ -1,7 +1,11 @@
 {
-    "name": "office-addin-test-helpers",
+    "name": "@infor/office-addin-test-helpers",
     "version": "1.2.0",
     "description": "Provides test helpers for automating validation of Office Add-ins.",
+    "publishConfig": {
+        "scope": "@infor",
+        "registry": "http://npm.infor.com:4873/"
+    },
     "main": "./lib/main.js",
     "scripts": {
         "build": "rimraf lib && concurrently \"tsc -p tsconfig.json\"",
