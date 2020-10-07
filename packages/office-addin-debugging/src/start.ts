@@ -5,6 +5,7 @@ import * as fetch from "node-fetch";
 import * as devCerts from "office-addin-dev-certs";
 import * as devSettings from "office-addin-dev-settings";
 import * as os from "os";
+import * as childProcess from "child_process";
 import { DebuggingMethod, sideloadAddIn } from "office-addin-dev-settings";
 import { OfficeApp, OfficeAddinManifest } from "office-addin-manifest";
 import * as nodeDebugger from "office-addin-node-debugger";
@@ -97,6 +98,12 @@ export function parsePlatform(text: string): Platform | undefined {
       throw new ExpectedError(`The current platform is not supported: ${process.platform}`);
   }
 }
+
+const isWindowsServer = async () => new Promise<boolean>((resolve, reject) =>
+    childProcess.exec('wmic os get caption', (error, output) =>
+        error ? reject(error) : resolve(/server/i.test(output))
+    )
+);
 
 export async function runDevServer(commandLine: string, port?: number): Promise<void> {
   if (commandLine) {
@@ -299,7 +306,7 @@ export async function startDebugging(manifestPath: string, options: StartDebuggi
     }
 
     // enable loopback for Edge
-    if (isWindowsPlatform && parseInt(os.release(), 10) === 10) {
+    if (isWindowsPlatform && parseInt(os.release(), 10) === 10 && !(await isWindowsServer())) {
       const name = isDesktopAppType ? "EdgeWebView" : "EdgeWebBrowser";
       await devSettings.ensureLoopbackIsEnabled(name);
     }
