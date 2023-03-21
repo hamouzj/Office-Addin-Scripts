@@ -13,7 +13,8 @@
         "types": [
             "node",
             "es6-promise",
-        ]
+        ],
+        "inlineSources": true
     },
     "include": [
         "src/**/*",
