@@ -17,13 +17,15 @@ export class TestServer {
   private app: express.Express;
   private resultsPromise: Promise<JSON>;
   private server: https.Server;
+  private suitesPromise: Promise<JSON>;
+  private suiteName: string | undefined;
 
-  constructor(port: number) {
+  constructor(port: number, suiteName?: string) {
     this.app = express();
     this.jsonData = {};
     this.port = port;
-    this.resultsPromise = undefined;
     this.testServerStarted = false;
+    this.suiteName = suiteName;
   }
 
   public async startTestServer(mochaTest: boolean = false): Promise<boolean> {
@@ -53,6 +55,18 @@ export class TestServer {
         });
       });
 
+      this.suitesPromise = new Promise<JSON>((resolveResults) => {
+        this.app.post("/suites", async (req: any, res: any) => {
+          res.send("200");
+          this.jsonData = req.body;
+          resolveResults(this.jsonData);
+        });
+      });
+
+      this.app.get("/getSuites", (req: any, res: any) => {
+        res.send(this.suiteName);
+      });
+
       // start listening on specified port
       return await this.startListening();
     } catch (err) {
@@ -79,6 +93,10 @@ export class TestServer {
 
   public async getTestResults(): Promise<JSON> {
     return this.resultsPromise;
+  }
+
+  public async getSuitesResults(): Promise<JSON> {
+    return this.suitesPromise;
   }
 
   public getTestServerState(): boolean {
