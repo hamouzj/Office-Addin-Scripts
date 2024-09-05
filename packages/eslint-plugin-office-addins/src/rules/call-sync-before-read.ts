@@ -1,23 +1,21 @@
-import { TSESTree } from "@typescript-eslint/experimental-utils";
-import { Variable } from "@typescript-eslint/experimental-utils/dist/ts-eslint-scope";
-import { findTopLevelExpression } from "../utils/utils";
+import { ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { Variable } from "@typescript-eslint/scope-manager";
+import { findTopMemberExpression } from "../utils/utils";
 import { findOfficeApiReferences, OfficeApiReference } from "../utils/utils";
 
-export = {
+export default ESLintUtils.RuleCreator(
+  () =>
+    "https://docs.microsoft.com/office/dev/add-ins/develop/application-specific-api-model#sync",
+)({
   name: "call-sync-before-read",
   meta: {
-    type: <"problem" | "suggestion" | "layout">"problem",
+    type: "problem",
     messages: {
       callSync: "Call context.sync() before trying to read '{{name}}'.",
     },
     docs: {
       description:
         "Always call load on the object's properties followed by a context.sync() before reading them.",
-      category: <
-        "Best Practices" | "Stylistic Issues" | "Variables" | "Possible Errors"
-      >"Possible Errors",
-      recommended: <false | "error" | "warn">false,
-      url: "https://docs.microsoft.com/office/dev/add-ins/develop/application-specific-api-model#sync",
     },
     schema: [],
   },
@@ -26,7 +24,7 @@ export = {
 
     function checkPropertyIsRead(node: TSESTree.MemberExpression): boolean {
       const topExpression: TSESTree.MemberExpression =
-        findTopLevelExpression(node);
+        findTopMemberExpression(node);
       switch (topExpression.parent?.type) {
         case TSESTree.AST_NODE_TYPES.AssignmentExpression:
           return topExpression.parent.right === topExpression;
@@ -80,4 +78,5 @@ export = {
       },
     };
   },
-};
+  defaultOptions: [],
+});

@@ -4,17 +4,17 @@ import {
   ESLintUtils,
   TSESLint,
   TSESTree,
-} from "@typescript-eslint/experimental-utils";
+} from "@typescript-eslint/utils";
 import * as ts from "typescript";
 
 export enum OfficeCalls {
-  WRITE = "WRITE", // eslint-disable-line no-unused-vars
-  READ = "READ", // eslint-disable-line no-unused-vars
-  NOTOFFICE = "NOTOFFICE", // eslint-disable-line no-unused-vars
+  WRITE = "WRITE",
+  READ = "READ",
+  NOTOFFICE = "NOTOFFICE",
 }
 
 type RequiredParserServices = ReturnType<typeof ESLintUtils.getParserServices>;
-export type Options = unknown[];
+export type Options = readonly unknown[];
 export type MessageIds = string;
 
 export const REPO_URL = "https://aka.ms/o-a-scripts";
@@ -239,7 +239,7 @@ export function isHelperFunc(
   let output = functionDeclarations
     ? functionDeclarations.some((declaration) => {
         let sourceFile = declaration.getSourceFile();
-        return !services.program.isSourceFileFromExternalLibrary(sourceFile);
+        return !services.program?.isSourceFileFromExternalLibrary(sourceFile);
       })
     : false;
 

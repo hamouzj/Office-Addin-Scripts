@@ -2,8 +2,9 @@
 // Licensed under the MIT license.
 
 import { createReadStream } from "fs";
+import { ManifestUtil, devPreview } from "@microsoft/teams-manifest";
 import fetch from "node-fetch";
-import { OfficeAddinManifest } from "./manifestInfo";
+import { OfficeAddinManifest } from "./manifestOperations";
 import { usageDataObject } from "./defaults";
 
 export class ManifestValidationDetails {
@@ -55,60 +56,84 @@ export class ManifestValidation {
   public isValid: boolean;
   public report?: ManifestValidationReport;
   public status?: number;
+  public statusText?: string;
 
   constructor() {
     this.isValid = false;
   }
 }
 
-export async function validateManifest(manifestPath: string): Promise<ManifestValidation> {
+export async function validateManifest(
+  manifestPath: string,
+  verifyProduction: boolean = false
+): Promise<ManifestValidation> {
   try {
     const validation: ManifestValidation = new ManifestValidation();
 
     // read the manifest file to ensure the file path is valid
     await OfficeAddinManifest.readManifestFile(manifestPath);
 
-    const stream = await createReadStream(manifestPath);
-    let response;
+    if (manifestPath.endsWith(".json")) {
+      const manifest: devPreview.DevPreviewSchema = await ManifestUtil.loadFromPath(manifestPath);
+      const validationResult: string[] = await ManifestUtil.validateManifest(manifest);
+      if (validationResult.length !== 0) {
+        // There are errors
+        validation.isValid = false;
+        validation.report = new ManifestValidationReport();
+        validation.report.errors = [];
+        validationResult.forEach((error: string) => {
+          let issue: ManifestValidationIssue = new ManifestValidationIssue();
+          issue.content = error;
+          issue.title = "Error";
 
-    try {
-      response = await fetch(
-        "https://validationgateway.omex.office.net/package/api/check?gates=DisableIconDimensionValidation",
-        {
+          validation.report?.errors?.push(issue);
+        });
+      } else {
+        validation.isValid = true;
+      }
+    } else {
+      const stream = await createReadStream(manifestPath);
+      const clientId: string = verifyProduction ? "Default" : "devx";
+      let response;
+
+      try {
+        response = await fetch(`https://validationgateway.omex.office.net/package/api/check?clientId=${clientId}`, {
           body: stream,
           headers: {
             "Content-Type": "application/xml",
           },
           method: "POST",
-        }
-      );
-    } catch (err) {
-      throw new Error(`Unable to contact the manifest validation service.\n${err}`);
-    }
+        });
+      } catch (err) {
+        throw new Error(`Unable to contact the manifest validation service.\n${err}`);
+      }
 
-    const text = await response.text();
-    const json = JSON.parse(text.trim());
-
-    if (json) {
-      validation.report = json;
       validation.status = response.status;
-    }
+      validation.statusText = response.statusText;
 
-    if (validation.report) {
-      const result = validation.report.status;
+      const text = await response.text();
 
-      if (result) {
-        switch (result.toLowerCase()) {
-          case "accepted":
-            validation.isValid = true;
-            break;
+      try {
+        const json = JSON.parse(text.trim());
+        if (json) {
+          validation.report = json;
+        }
+      } catch {} // eslint-disable-line no-empty
+
+      if (validation.report) {
+        const result = validation.report.status;
+
+        if (result) {
+          switch (result.toLowerCase()) {
+            case "accepted":
+              validation.isValid = true;
+              break;
+          }
         }
       }
     }
-    usageDataObject.reportSuccess("validateManifest()");
-
     return validation;
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("validateManifest()", err);
     throw err;
   }

@@ -9,35 +9,49 @@ import * as defaults from "./defaults";
 import { usageDataObject } from "./defaults";
 import { ExpectedError } from "office-addin-usage-data";
 
+// On win32 this is a unique hash used with PowerShell command to reliably delineate command output
+export const outputMarker = process.platform === "win32" ? `[${crypto.createHash("md5").update(`${defaults.certificateName}${defaults.caCertificatePath}`).digest("hex")}]` : "";
+
 /* global process, Buffer, __dirname */
 
-function getVerifyCommand(): string {
+function getVerifyCommand(returnInvalidCertificate: boolean): string {
   switch (process.platform) {
     case "win32": {
       const script = path.resolve(__dirname, "..\\scripts\\verify.ps1");
-      return `powershell -ExecutionPolicy Bypass -File "${script}" "${defaults.certificateName}"`;
+      const defaultCommand = `powershell -ExecutionPolicy Bypass -File "${script}" -CaCertificateName "${defaults.certificateName}" -CaCertificatePath "${defaults.caCertificatePath}" -LocalhostCertificatePath "${defaults.localhostCertificatePath}" -OutputMarker "${outputMarker}"`;
+      if (returnInvalidCertificate) {
+        return defaultCommand + ` -ReturnInvalidCertificate`;
+      }
+      return defaultCommand;
     }
-    case "darwin": // macOS
-      return `security find-certificate -c '${defaults.certificateName}' -p | openssl x509 -checkend 86400 -noout`;
+    case "darwin": {
+      // macOS
+      const script = path.resolve(__dirname, "../scripts/verify.sh");
+      return `sh '${script}' '${defaults.certificateName}'`;
+    }
     case "linux":
-      return `[ -f /usr/local/share/ca-certificates/office-addin-dev-certs/${defaults.caCertificateFileName} ] && openssl x509 -in /usr/local/share/ca-certificates/office-addin-dev-certs/${defaults.caCertificateFileName} -checkend 86400 -noout`;
+      const script = path.resolve(__dirname, "../scripts/verify_linux.sh");
+      return `sh '${script}' '${defaults.caCertificateFileName}'`;
     default:
       throw new ExpectedError(`Platform not supported: ${process.platform}`);
   }
 }
 
-export function isCaCertificateInstalled(): boolean {
-  const command = getVerifyCommand();
+export function isCaCertificateInstalled(returnInvalidCertificate: boolean = false): boolean {
+  const command = getVerifyCommand(returnInvalidCertificate);
 
   try {
     const output = execSync(command, { stdio: "pipe" }).toString();
-    if (process.platform === "darwin") {
+    if (process.platform === "win32") {
+      // Remove any PowerShell output that preceeds invoking the actual certificate check command
+      return output.slice(output.lastIndexOf(outputMarker) + outputMarker.length).trim().length !== 0;
+    }
+    // script files return empty string if the certificate not found or expired
+    if (output.length !== 0) {
       return true;
-    } else if (output.length !== 0) {
-      return true; // powershell command return empty string if the certificate not-found/expired
     }
   } catch (error) {
-    // Mac security command throws error if the certifcate is not-found/expired
+    // Some commands throw errors if the certifcate is not found or expired
   }
 
   return false;
@@ -88,7 +102,7 @@ export function verifyCertificates(
     let output = isCertificateValid && isCaCertificateInstalled();
     usageDataObject.reportSuccess("verifyCertificates()");
     return output;
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("verifyCertificates()", err);
     throw err;
   }

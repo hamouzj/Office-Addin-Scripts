@@ -17,7 +17,8 @@ export async function generateCertificates(
   caCertificatePath: string = defaults.caCertificatePath,
   localhostCertificatePath: string = defaults.localhostCertificatePath,
   localhostKeyPath: string = defaults.localhostKeyPath,
-  daysUntilCertificateExpires: number = defaults.daysUntilCertificateExpires
+  daysUntilCertificateExpires: number = defaults.daysUntilCertificateExpires,
+  domains: string[] = defaults.domain
 ) {
   try {
     fsExtra.ensureDirSync(path.dirname(caCertificatePath));
@@ -27,12 +28,12 @@ export async function generateCertificates(
     throw new Error(`Unable to create the directory.\n${err}`);
   }
 
-  const cACertificateInfo: mkcert.CACertificateInfo = {
+  const cACertificateInfo: mkcert.CertificateAuthorityOptions = {
     countryCode: defaults.countryCode,
     locality: defaults.locality,
     organization: defaults.certificateName,
     state: defaults.state,
-    validityDays: daysUntilCertificateExpires,
+    validity: daysUntilCertificateExpires,
   };
   let caCertificate: mkcert.Certificate;
   try {
@@ -41,11 +42,10 @@ export async function generateCertificates(
     throw new Error(`Unable to generate the CA certificate.\n${err}`);
   }
 
-  const localhostCertificateInfo: mkcert.CertificateInfo = {
-    caCert: caCertificate.cert,
-    caKey: caCertificate.key,
-    domains: defaults.domain,
-    validityDays: daysUntilCertificateExpires,
+  const localhostCertificateInfo: mkcert.CertificateOptions = {
+    ca: caCertificate,
+    domains,
+    validity: daysUntilCertificateExpires,
   };
   let localhostCertificate: mkcert.Certificate;
   try {

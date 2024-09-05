@@ -2,7 +2,7 @@ import {
   TSESTree,
   ESLintUtils,
   ParserServices,
-} from "@typescript-eslint/experimental-utils";
+} from "@typescript-eslint/utils";
 import {
   REPO_URL,
   callExpressionAnalysis,
@@ -13,7 +13,7 @@ import {
   RuleContext,
   RuleMetaDataDocs,
   RuleMetaData,
-} from "@typescript-eslint/experimental-utils/dist/ts-eslint";
+} from "@typescript-eslint/utils/dist/ts-eslint";
 import ts from "typescript";
 
 /**
@@ -25,33 +25,31 @@ import ts from "typescript";
 // Rule Definition
 //------------------------------------------------------------------------------
 
-type Options = unknown[];
+type Options = readonly unknown[];
 type MessageIds = "officeReadCall";
 
-export = {
+export default ESLintUtils.RuleCreator(
+  () =>
+    REPO_URL,
+)({
   name: "no-office-read-calls",
-
   meta: {
     docs: {
       description: "Prevents office read api calls",
-      category: <RuleMetaDataDocs["category"]>"Best Practices",
-      recommended: <RuleMetaDataDocs["recommended"]>"warn",
+      recommended: "recommended",
       requiresTypeChecking: true,
-      url: REPO_URL,
     },
-    type: <RuleMetaData<MessageIds>["type"]>"problem",
+    type: "problem",
     messages: <Record<MessageIds, string>>{
       officeReadCall: "No Office API read calls within Custom Functions",
     },
     schema: [],
   },
 
-  create: function (
-    ruleContext: RuleContext<MessageIds, Options>
-  ): {
-    CallExpression: (node: TSESTree.CallExpression) => void; // eslint-disable-line no-unused-vars
-    AssignmentExpression: (node: TSESTree.AssignmentExpression) => void; // eslint-disable-line no-unused-vars
-    VariableDeclarator: (node: TSESTree.VariableDeclarator) => void; // eslint-disable-line no-unused-vars
+  create: function (ruleContext: RuleContext<MessageIds, Options>): {
+    CallExpression: (node: TSESTree.CallExpression) => void; // eslint-disable-line @typescript-eslint/no-unused-vars
+    AssignmentExpression: (node: TSESTree.AssignmentExpression) => void; // eslint-disable-line @typescript-eslint/no-unused-vars
+    VariableDeclarator: (node: TSESTree.VariableDeclarator) => void; // eslint-disable-line @typescript-eslint/no-unused-vars
   } {
     const services: ParserServices = ESLintUtils.getParserServices(ruleContext);
     const typeChecker: ts.TypeChecker = services.program.getTypeChecker();
@@ -101,4 +99,5 @@ export = {
       },
     };
   },
-};
+  defaultOptions: [],
+});

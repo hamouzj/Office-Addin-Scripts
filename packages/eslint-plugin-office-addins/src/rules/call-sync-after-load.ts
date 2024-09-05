@@ -1,16 +1,20 @@
-import { TSESTree } from "@typescript-eslint/experimental-utils";
-import { Reference } from "@typescript-eslint/experimental-utils/dist/ts-eslint-scope";
-import { parseLoadArguments } from "../utils/load";
+import { ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { Reference } from "@typescript-eslint/scope-manager";
+import { isLoadCall, parsePropertiesArgument } from "../utils/load";
 import {
   findPropertiesRead,
   findOfficeApiReferences,
   OfficeApiReference,
+  findCallExpression,
 } from "../utils/utils";
 
-export = {
+export default ESLintUtils.RuleCreator(
+  () =>
+    "https://docs.microsoft.com/office/dev/add-ins/develop/application-specific-api-model#load",
+)({
   name: "call-sync-after-load",
   meta: {
-    type: <"problem" | "suggestion" | "layout">"suggestion",
+    type: "suggestion",
     messages: {
       callSyncAfterLoad:
         "Call context.sync() after calling load on '{{name}}' for the property '{{loadValue}}' and before reading the property.",
@@ -18,11 +22,6 @@ export = {
     docs: {
       description:
         "Always call context.sync() between loading one or more properties on objects and reading any of those properties.",
-      category: <
-        "Best Practices" | "Stylistic Issues" | "Variables" | "Possible Errors"
-      >"Best Practices",
-      recommended: <false | "error" | "warn">false,
-      url: "https://docs.microsoft.com/office/dev/add-ins/develop/application-specific-api-model#load",
     },
     schema: [],
   },
@@ -52,24 +51,22 @@ export = {
         const identifier: TSESTree.Node = reference.identifier;
         const variable = reference.resolved;
 
-        if (
-          operation === "Load" &&
-          variable &&
-          identifier.parent?.type == TSESTree.AST_NODE_TYPES.MemberExpression
-        ) {
-          const propertyNames: string[] = parseLoadArguments(identifier.parent);
+        if (operation === "Load" && variable) {
+          const propertiesArgument = getPropertiesArgument(identifier);
+          const propertyNames: string[] = propertiesArgument
+            ? parsePropertiesArgument(propertiesArgument)
+            : ["*"];
           propertyNames.forEach((propertyName: string) => {
-            needSync.add({ variable: variable.name, property: propertyName });
+            needSync.add({
+              variable: variable.name,
+              property: propertyName,
+            });
           });
-        }
-
-        if (operation === "Sync") {
+        } else if (operation === "Sync") {
           needSync.clear();
-        }
-
-        if (operation === "Read" && variable) {
+        } else if (operation === "Read" && variable) {
           const propertyName: string = findPropertiesRead(
-            reference.identifier.parent
+            reference.identifier.parent,
           );
 
           if (
@@ -87,6 +84,37 @@ export = {
       });
     }
 
+    function getPropertiesArgument(
+      identifier: TSESTree.Identifier | TSESTree.JSXIdentifier,
+    ): TSESTree.CallExpressionArgument | undefined {
+      let propertiesArgument;
+      if (
+        identifier.parent?.type === TSESTree.AST_NODE_TYPES.MemberExpression
+      ) {
+        // Look for <obj>.load(...) call
+        const methodCall = findCallExpression(identifier.parent);
+
+        if (methodCall && isLoadCall(methodCall)) {
+          propertiesArgument = methodCall.arguments[0];
+        }
+      } else if (
+        identifier.parent?.type === TSESTree.AST_NODE_TYPES.CallExpression
+      ) {
+        // Look for context.load(<obj>, "...") call
+        const args: TSESTree.CallExpressionArgument[] =
+          identifier.parent.arguments;
+        if (
+          isLoadCall(identifier.parent) &&
+          args[0] == identifier &&
+          args.length < 3
+        ) {
+          propertiesArgument = args[1];
+        }
+      }
+
+      return propertiesArgument;
+    }
+
     return {
       Program() {
         apiReferences = findOfficeApiReferences(context.getScope());
@@ -100,4 +128,5 @@ export = {
       },
     };
   },
-};
+  defaultOptions: [],
+});

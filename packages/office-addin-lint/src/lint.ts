@@ -1,16 +1,17 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT license.
 
+import * as fs from "fs";
 import * as path from "path";
 import { usageDataObject, ESLintExitCode, PrettierExitCode } from "./defaults";
 
-/* global require, __dirname */
+/* global require, __dirname, process */
 
 const eslintPath = require.resolve("eslint");
 const prettierPath = require.resolve("prettier");
 const eslintDir = path.parse(eslintPath).dir;
 const eslintFilePath = path.resolve(eslintDir, "../bin/eslint.js");
-const prettierFilePath = path.resolve(prettierPath, "../bin-prettier.js");
+const prettierFilePath = path.resolve(prettierPath, "../bin/prettier.cjs");
 const eslintConfigPath = path.resolve(__dirname, "../config/.eslintrc.json");
 const eslintTestConfigPath = path.resolve(__dirname, "../config/.eslintrc.test.json");
 
@@ -24,7 +25,9 @@ function normalizeFilePath(filePath: string): string {
 }
 
 function getEsLintBaseCommand(useTestConfig: boolean = false): string {
-  const configFilePath = useTestConfig ? eslintTestConfigPath : eslintConfigPath;
+  const projLintConfig = path.resolve(process.cwd(), ".eslintrc.json");
+  const prodConfig = fs.existsSync(projLintConfig) ? projLintConfig : eslintConfigPath;
+  const configFilePath = useTestConfig ? eslintTestConfigPath : prodConfig;
   const eslintBaseCommand: string = `node "${eslintFilePath}" -c "${configFilePath}" --resolve-plugins-relative-to "${__dirname}"`;
   return eslintBaseCommand;
 }
@@ -39,7 +42,7 @@ export function performLintCheck(files: string, useTestConfig: boolean = false) 
     const command = getLintCheckCommand(files, useTestConfig);
     execCommand(command);
     usageDataObject.reportSuccess("performLintCheck()", { exitCode: ESLintExitCode.NoLintErrors });
-  } catch (err) {
+  } catch (err: any) {
     if (err.status && err.status == ESLintExitCode.HasLintError) {
       usageDataObject.reportExpectedException("performLintCheck()", err, { exitCode: ESLintExitCode.HasLintError });
     } else {
@@ -59,7 +62,7 @@ export function performLintFix(files: string, useTestConfig: boolean = false) {
     const command = getLintFixCommand(files, useTestConfig);
     execCommand(command);
     usageDataObject.reportSuccess("performLintFix()", { exitCode: ESLintExitCode.NoLintErrors });
-  } catch (err) {
+  } catch (err: any) {
     if (err.status && err.status == ESLintExitCode.HasLintError) {
       usageDataObject.reportExpectedException("performLintFix()", err, { exitCode: ESLintExitCode.HasLintError });
     } else {
@@ -79,7 +82,7 @@ export function makeFilesPrettier(files: string) {
     const command = getPrettierCommand(files);
     execCommand(command);
     usageDataObject.reportSuccess("makeFilesPrettier()", { exitCode: PrettierExitCode.NoFormattingProblems });
-  } catch (err) {
+  } catch (err: any) {
     if (err.status && err.status == PrettierExitCode.HasFormattingProblem) {
       usageDataObject.reportExpectedException("makeFilesPrettier()", err, {
         exitCode: PrettierExitCode.HasFormattingProblem,

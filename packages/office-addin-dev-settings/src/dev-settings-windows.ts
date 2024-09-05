@@ -3,20 +3,33 @@
 // copyright (c) Microsoft Corporation. All rights reserved.
 // licensed under the MIT license.
 
-import { getOfficeAppsForManifestHosts, ManifestInfo, OfficeApp, OfficeAddinManifest } from "office-addin-manifest";
+import {
+  exportMetadataPackage,
+  getOfficeAppsForManifestHosts,
+  ManifestInfo,
+  OfficeApp,
+  OfficeAddinManifest,
+  ManifestType,
+} from "office-addin-manifest";
 import { DebuggingMethod, RegisteredAddin, SourceBundleUrlComponents, WebViewType } from "./dev-settings";
 import { ExpectedError } from "office-addin-usage-data";
 import * as registry from "./registry";
+import { registerWithTeams, uninstallWithTeams } from "./publish";
+import * as fspath from "path";
+
+/* global process */
 
 const DeveloperSettingsRegistryKey: string = `HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Office\\16.0\\Wef\\Developer`;
 
 const OpenDevTools: string = "OpenDevTools";
 export const OutlookSideloadManifestPath: string = "OutlookSideloadManifestPath";
+const RefreshAddins: string = "RefreshAddins";
 const RuntimeLogging: string = "RuntimeLogging";
 const SourceBundleExtension: string = "SourceBundleExtension";
 const SourceBundleHost: string = "SourceBundleHost";
 const SourceBundlePath: string = "SourceBundlePath";
 const SourceBundlePort: string = "SourceBundlePort";
+const TitleId: string = "TitleId";
 const UseDirectDebugger: string = "UseDirectDebugger";
 const UseLiveReload: string = "UseLiveReload";
 const UseProxyDebugger: string = "UseWebDebugger";
@@ -60,12 +73,6 @@ export async function enableDebugging(
 export async function enableLiveReload(addinId: string, enable: boolean = true): Promise<void> {
   const key = getDeveloperSettingsRegistryKey(addinId);
   return registry.addBooleanValue(key, UseLiveReload, enable);
-}
-
-async function enableOutlookSideloading(manifestPath: string): Promise<void> {
-  const key = getDeveloperSettingsRegistryKey(OutlookSideloadManifestPath);
-
-  return registry.addStringValue(key, "", manifestPath); // empty string for the default value
 }
 
 export async function enableRuntimeLogging(path: string): Promise<void> {
@@ -167,17 +174,32 @@ function isRegistryValueTrue(value?: registry.RegistryValue): boolean {
   return false;
 }
 
-export async function registerAddIn(addinId: string, manifestPath: string) {
+export async function registerAddIn(manifestPath: string, registration?: string): Promise<void> {
   const manifest: ManifestInfo = await OfficeAddinManifest.readManifestFile(manifestPath);
   const appsInManifest = getOfficeAppsForManifestHosts(manifest.hosts);
-  if (appsInManifest.indexOf(OfficeApp.Outlook) >= 0) {
-    enableOutlookSideloading(manifestPath);
+
+  // Register using the service
+  if (manifest.manifestType === ManifestType.JSON || appsInManifest.indexOf(OfficeApp.Outlook) >= 0) {
+    if (!registration) {
+      let filePath = "";
+      if (manifest.manifestType === ManifestType.JSON) {
+        const targetPath: string = fspath.join(process.env.TEMP as string, "manifest.zip");
+        filePath = await exportMetadataPackage(targetPath, manifestPath);
+      } else if (manifest.manifestType === ManifestType.XML) {
+        filePath = manifestPath;
+      }
+      registration = await registerWithTeams(filePath);
+      enableRefreshAddins();
+    }
+
+    const key = getDeveloperSettingsRegistryKey(OutlookSideloadManifestPath);
+    await registry.addStringValue(key, TitleId, registration);
   }
 
   const key = new registry.RegistryKey(`${DeveloperSettingsRegistryKey}`);
 
   await registry.deleteValue(key, manifestPath); // in case the manifest path was previously used as the key
-  return registry.addStringValue(key, addinId, manifestPath);
+  return registry.addStringValue(key, manifest.id || "", manifestPath);
 }
 
 export async function setSourceBundleUrl(addinId: string, components: SourceBundleUrlComponents): Promise<void> {
@@ -265,6 +287,7 @@ export async function unregisterAddIn(addinId: string, manifestPath: string): Pr
   const key = new registry.RegistryKey(`${DeveloperSettingsRegistryKey}`);
 
   if (addinId) {
+    await unacquire(key, addinId);
     await registry.deleteValue(key, addinId);
   }
 
@@ -279,6 +302,25 @@ export async function unregisterAllAddIns(): Promise<void> {
   const values = await registry.getValues(key);
 
   for (const value of values) {
+    await unacquire(key, value.name);
     await registry.deleteValue(key, value.name);
   }
+}
+
+async function unacquire(key: registry.RegistryKey, id: string) {
+  const manifest = await registry.getStringValue(key, id);
+  if (manifest != undefined) {
+    const key = getDeveloperSettingsRegistryKey(OutlookSideloadManifestPath);
+    const registration = await registry.getStringValue(key, TitleId);
+    if (registration != undefined) {
+      uninstallWithTeams(registration);
+      registry.deleteValue(key, TitleId);
+      enableRefreshAddins();
+    }
+  }
+}
+
+async function enableRefreshAddins() {
+  const key = new registry.RegistryKey(`${DeveloperSettingsRegistryKey}`);
+  await registry.addBooleanValue(key, RefreshAddins, true);
 }

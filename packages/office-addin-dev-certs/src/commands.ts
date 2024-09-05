@@ -2,7 +2,8 @@
 // Licensed under the MIT license.
 
 import * as commander from "commander";
-import { logErrorMessage, parseNumber } from "office-addin-cli";
+import { parseNumber } from "office-addin-cli";
+import { logErrorMessage } from "office-addin-usage-data";
 import * as defaults from "./defaults";
 import { ensureCertificatesAreInstalled } from "./install";
 import { deleteCertificateFiles, uninstallCaCertificate } from "./uninstall";
@@ -11,6 +12,19 @@ import { usageDataObject } from "./defaults";
 import { ExpectedError } from "office-addin-usage-data";
 
 /* global console */
+
+export async function install(command: commander.Command) {
+  try {
+    const days = parseDays(command.days);
+    const domains = parseDomains(command.domains);
+
+    await ensureCertificatesAreInstalled(days, domains, command.machine);
+    usageDataObject.reportSuccess("install");
+  } catch (err: any) {
+    usageDataObject.reportException("install", err);
+    logErrorMessage(err);
+  }
+}
 
 function parseDays(optionValue: any): number | undefined {
   const days = parseNumber(optionValue, "--days should specify a number.");
@@ -26,19 +40,36 @@ function parseDays(optionValue: any): number | undefined {
   return days;
 }
 
-export async function install(command: commander.Command) {
-  try {
-    const days = parseDays(command.days);
+function parseDomains(optionValue: any): string[] | undefined {
+  switch (typeof optionValue) {
+    case "string": {
+      try {
+        return optionValue.split(",");
+      } catch (err) {
+        throw new Error("string value not in the correct format");
+      }
+    }
+    case "undefined": {
+      return undefined;
+    }
+    default: {
+      throw new Error("--domains value should be a string.");
+    }
+  }
+}
 
-    await ensureCertificatesAreInstalled(days, command.machine);
-    usageDataObject.reportSuccess("install");
-  } catch (err) {
-    usageDataObject.reportException("install", err);
+export async function uninstall(command: commander.Command) {
+  try {
+    await uninstallCaCertificate(command.machine);
+    deleteCertificateFiles(defaults.certificateDirectory);
+    usageDataObject.reportSuccess("uninstall");
+  } catch (err: any) {
+    usageDataObject.reportException("uninstall", err);
     logErrorMessage(err);
   }
 }
 
-export async function verify(command: commander.Command /* eslint-disable-line no-unused-vars */) {
+export async function verify(command: commander.Command /* eslint-disable-line @typescript-eslint/no-unused-vars */) {
   try {
     if (await verifyCertificates()) {
       console.log(
@@ -48,19 +79,8 @@ export async function verify(command: commander.Command /* eslint-disable-line n
       console.log(`You need to install certificates for trusted access to https://localhost.`);
     }
     usageDataObject.reportSuccess("verify");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("verify", err);
-    logErrorMessage(err);
-  }
-}
-
-export async function uninstall(command: commander.Command) {
-  try {
-    await uninstallCaCertificate(command.machine);
-    deleteCertificateFiles(defaults.certificateDirectory);
-    usageDataObject.reportSuccess("uninstall");
-  } catch (err) {
-    usageDataObject.reportException("uninstall", err);
     logErrorMessage(err);
   }
 }

@@ -22,7 +22,7 @@ Display or configure settings related to the appcontainer for an Office Add-in.
 
 Syntax:
 
-`office addin-dev-settings appcontainer <manifest> [options]`
+`office-addin-dev-settings appcontainer <manifest> [options]`
 
 `manifest`: path to manifest file.
 
@@ -50,7 +50,7 @@ Clear developer settings for the Office Add-in.
 
 Syntax:
 
-`office addin-debugging clear <manifest>`
+`office-addin-debugging clear <manifest>`
 
 `manifest`: path to manifest file.
 
@@ -61,7 +61,7 @@ Display or configure debugging settings for an Office Add-in.
 
 Syntax:
 
-`office addin-dev-settings debugging <manifest> [options]`
+`office-addin-dev-settings debugging <manifest> [options]`
 
 `manifest`: path to manifest file. 
 
@@ -94,9 +94,9 @@ Display or configure settings related to live reload for an Office Add-in.
 
 Syntax:
 
-`office addin-dev-settings live-reload <manifest> [options]`
+`office-addin-dev-settings live-reload <manifest> [options]`
 
-`manifest`: path to manifest file. 
+`manifest`: path to manifest file.
 
 Without options, displays whether live reload is enabled.
 
@@ -112,23 +112,32 @@ Enable live-reload for the Office Add-in.
  
 #
 
-### register 
-Registers an Office Add-in for development. 
+### m365-account
+Logs in or out of the m365 account used to sideload json manifests
 
 Syntax:
 
-`office addin-dev-settings register <manifest> [options]`
+`office-addin-dev-settings m365-account <operation>`
 
-`manifest`: path to manifest file. 
+`operation`: 'login' or 'logout'
+
+### register
+Registers an Office Add-in for development.
+
+Syntax:
+
+`office-addin-dev-settings register <manifest> [options]`
+
+`manifest`: path to manifest file.
 
 #
 
 ### registered 
-Displays the Office Add-ins registered for development. 
+Displays the Office Add-ins registered for development.
 
 Syntax:
 
-`office addin-dev-settings registered [options]`
+`office-addin-dev-settings registered [options]`
 
 #
 
@@ -141,7 +150,7 @@ The setting is not specific to a particular Office Add-in. It applies to the run
 
 Syntax:
 
-`office addin-dev-settings runtime-log [options]`
+`office-addin-dev-settings runtime-log [options]`
 
 Without options, displays whether runtime logging is enabled and the log file path (if enabled).
 
@@ -164,7 +173,7 @@ Start Office and open a document so the Office Add-in is loaded.
 
 Syntax:
 
-`office addin-dev-settings sideload <manifest> [app-type] [options]`
+`office-addin-dev-settings sideload <manifest> [app-type] [options]`
 
 `manifest`: path to manifest file.
 
@@ -196,13 +205,13 @@ The url is composed as:
 http://`HOST`:`PORT`/`PATH` `EXTENSION`
 
 * `HOST`: host name; default is `localhost`
-* `PORT`: port number; default is `8081` 
+* `PORT`: port number; default is `8081`
 * `PATH`: path
 * `EXTENSION`: extension (including period); default is `.bundle`
 
 Syntax:
 
-`office addin-dev-settings source-bundle-url [options]`
+`office-addin-dev-settings source-bundle-url [options]`
 
 Without options, displays the current source-bundle-url settings.
 
@@ -234,7 +243,7 @@ Unregisters an Office Add-in for development.
 
 Syntax:
 
-`office addin-dev-settings register <manifest> [options]`
+`office-addin-dev-settings register <manifest> [options]`
 
 `manifest`: path to manifest file. 
 
@@ -247,7 +256,7 @@ Switches the webview runtime in Office for testing and development scenarios.
 
 Syntax:
 
-`office addin-dev-settings webview <manifest> <web-view-type>`
+`office-addin-dev-settings webview <manifest> <web-view-type>`
 
 `manifest`: path to manifest file. 
 

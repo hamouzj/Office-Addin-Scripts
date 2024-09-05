@@ -1,17 +1,20 @@
-import { TSESTree } from "@typescript-eslint/experimental-utils";
-import {
-  Reference,
-  Scope,
-  Variable,
-} from "@typescript-eslint/experimental-utils/dist/ts-eslint-scope";
+import { ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { Reference, Scope, Variable } from "@typescript-eslint/scope-manager";
 import { isGetFunction } from "../utils/getFunction";
-import { parseLoadArguments, isLoadFunction } from "../utils/load";
+import {
+  parseLoadArguments,
+  isLoadFunction,
+  parsePropertiesArgument,
+} from "../utils/load";
 import { getPropertyType, PropertyType } from "../utils/propertiesType";
 
-export = {
+export default ESLintUtils.RuleCreator(
+  () =>
+    "https://docs.microsoft.com/office/dev/add-ins/develop/application-specific-api-model#scalar-and-navigation-properties",
+)({
   name: "no-navigational-load",
   meta: {
-    type: <"problem" | "suggestion" | "layout">"problem",
+    type: "problem",
     messages: {
       navigationalLoad:
         "Calling load on the navigation property '{{loadValue}}' slows down your add-in.",
@@ -19,11 +22,6 @@ export = {
     docs: {
       description:
         "Calling load on a navigation property causes unneeded data to load and slows down your add-in.",
-      category: <
-        "Best Practices" | "Stylistic Issues" | "Variables" | "Possible Errors"
-      >"Best Practices",
-      recommended: <false | "error" | "warn">false,
-      url: "https://docs.microsoft.com/office/dev/add-ins/develop/application-specific-api-model#scalar-and-navigation-properties",
     },
     schema: [],
   },
@@ -76,6 +74,7 @@ export = {
             node.parent?.type === TSESTree.AST_NODE_TYPES.MemberExpression &&
             isLoadFunction(node.parent)
           ) {
+            // <obj>.load(...) call
             const propertyNames: string[] = parseLoadArguments(node.parent);
             propertyNames.forEach((propertyName: string) => {
               if (propertyName && !isLoadingValidPropeties(propertyName)) {
@@ -86,6 +85,26 @@ export = {
                 });
               }
             });
+          } else if (
+            node.parent?.type === TSESTree.AST_NODE_TYPES.CallExpression
+          ) {
+            //context.load(<obj>, "...") call
+            const callee: TSESTree.MemberExpression = node.parent
+              .callee as TSESTree.MemberExpression;
+            const args: TSESTree.CallExpressionArgument[] =
+              node.parent.arguments;
+            if (isLoadFunction(callee) && args[0] == node && args.length < 3) {
+              const propertyNames: string[] = parsePropertiesArgument(args[1]);
+              propertyNames.forEach((propertyName: string) => {
+                if (propertyName && !isLoadingValidPropeties(propertyName)) {
+                  context.report({
+                    node: node.parent,
+                    messageId: "navigationalLoad",
+                    data: { name: node.name, loadValue: propertyName },
+                  });
+                }
+              });
+            }
           }
         });
       });
@@ -98,4 +117,5 @@ export = {
       },
     };
   },
-};
+  defaultOptions: [],
+});

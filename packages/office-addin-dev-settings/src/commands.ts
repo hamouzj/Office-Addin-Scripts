@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 import * as commander from "commander";
-import { logErrorMessage } from "office-addin-cli";
+import { logErrorMessage } from "office-addin-usage-data";
 import { ManifestInfo, OfficeApp, parseOfficeApp, OfficeAddinManifest } from "office-addin-manifest";
 import {
   ensureLoopbackIsEnabled,
@@ -16,6 +16,7 @@ import * as devSettings from "./dev-settings";
 import { sideloadAddIn } from "./sideload";
 import { usageDataObject } from "./defaults";
 import { ExpectedError } from "office-addin-usage-data";
+import { AccountOperation, updateM365Account } from "./publish";
 
 /* global process, console */
 
@@ -48,7 +49,7 @@ export async function appcontainer(manifestPath: string, command: commander.Comm
         }
       }
       usageDataObject.reportSuccess("appcontainer");
-    } catch (err) {
+    } catch (err: any) {
       usageDataObject.reportException("appcontainer", err);
       logErrorMessage(err);
     }
@@ -67,7 +68,7 @@ export async function clear(manifestPath: string) {
 
     console.log("Developer settings have been cleared.");
     usageDataObject.reportSuccess("clear");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("clear", err);
     logErrorMessage(err);
   }
@@ -83,7 +84,7 @@ export async function debugging(manifestPath: string, command: commander.Command
       await isDebuggingEnabled(manifestPath);
     }
     usageDataObject.reportSuccess("debugging");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("debugging", err);
     logErrorMessage(err);
   }
@@ -109,7 +110,7 @@ export async function disableDebugging(manifestPath: string) {
 
     console.log("Debugging has been disabled.");
     usageDataObject.reportSuccess("disableDebugging()");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("disableDebugging()", err);
     logErrorMessage(err);
   }
@@ -125,7 +126,7 @@ export async function disableLiveReload(manifestPath: string) {
 
     console.log("Live reload has been disabled.");
     usageDataObject.reportSuccess("disableLiveReload()");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("disableLiveReload()", err);
     logErrorMessage(err);
   }
@@ -137,7 +138,7 @@ export async function disableRuntimeLogging() {
 
     console.log("Runtime logging has been disabled.");
     usageDataObject.reportSuccess("disableRuntimeLogging()");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("disableRuntimeLogging()", err);
     logErrorMessage(err);
   }
@@ -153,7 +154,7 @@ export async function enableDebugging(manifestPath: string, command: commander.C
 
     console.log("Debugging has been enabled.");
     usageDataObject.reportSuccess("enableDebugging()");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("enableDebugging()", err);
     logErrorMessage(err);
   }
@@ -169,7 +170,7 @@ export async function enableLiveReload(manifestPath: string) {
 
     console.log("Live reload has been enabled.");
     usageDataObject.reportSuccess("enableLiveReload()");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("enableLiveReload()", err);
     logErrorMessage(err);
   }
@@ -181,7 +182,7 @@ export async function enableRuntimeLogging(path?: string) {
 
     console.log(`Runtime logging has been enabled. File: ${logPath}`);
     usageDataObject.reportSuccess("enableRuntimeLogging()");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("enableRuntimeLogging()", err);
     logErrorMessage(err);
   }
@@ -197,7 +198,7 @@ export async function getSourceBundleUrl(manifestPath: string) {
 
     displaySourceBundleUrl(components);
     usageDataObject.reportSuccess("getSourceBundleUrl()");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("getSourceBundleUrl()", err);
     logErrorMessage(err);
   }
@@ -213,7 +214,7 @@ export async function isDebuggingEnabled(manifestPath: string) {
 
     console.log(enabled ? "Debugging is enabled." : "Debugging is not enabled.");
     usageDataObject.reportSuccess("isDebuggingEnabled()");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("isDebuggingEnabled()", err);
     logErrorMessage(err);
   }
@@ -229,7 +230,7 @@ export async function isLiveReloadEnabled(manifestPath: string) {
 
     console.log(enabled ? "Live reload is enabled." : "Live reload is not enabled.");
     usageDataObject.reportSuccess("isLiveReloadEnabled()");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("isLiveReloadEnabled()", err);
     logErrorMessage(err);
   }
@@ -241,7 +242,7 @@ export async function isRuntimeLoggingEnabled() {
 
     console.log(path ? `Runtime logging is enabled. File: ${path}` : "Runtime logging is not enabled.");
     usageDataObject.reportSuccess("isRuntimeLoggingEnabled()");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("isRuntimeLoggingEnabled()", err);
     logErrorMessage(err);
   }
@@ -257,7 +258,7 @@ export async function liveReload(manifestPath: string, command: commander.Comman
       await isLiveReloadEnabled(manifestPath);
     }
     usageDataObject.reportSuccess("liveReload");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("liveReload", err);
     logErrorMessage(err);
   }
@@ -294,20 +295,35 @@ export function parseWebViewType(webViewString?: string): devSettings.WebViewTyp
   }
 }
 
+export async function m365Account(
+  operation: AccountOperation,
+  command: commander.Command /* eslint-disable-line @typescript-eslint/no-unused-vars */
+) {
+  try {
+    await updateM365Account(operation);
+    usageDataObject.reportSuccess("m365Account");
+  } catch (err: any) {
+    usageDataObject.reportException("m365Account", err);
+    logErrorMessage(err);
+  }
+}
+
 export async function register(
   manifestPath: string,
-  command: commander.Command /* eslint-disable-line no-unused-vars */
+  command: commander.Command /* eslint-disable-line @typescript-eslint/no-unused-vars */
 ) {
   try {
     await devSettings.registerAddIn(manifestPath);
     usageDataObject.reportSuccess("register");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("register", err);
     logErrorMessage(err);
   }
 }
 
-export async function registered(command: commander.Command /* eslint-disable-line no-unused-vars */) {
+export async function registered(
+  command: commander.Command /* eslint-disable-line @typescript-eslint/no-unused-vars */
+) {
   try {
     const registeredAddins = await devSettings.getRegisterAddIns();
 
@@ -330,7 +346,7 @@ export async function registered(command: commander.Command /* eslint-disable-li
       console.log("No add-ins are registered.");
     }
     usageDataObject.reportSuccess("registered");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("registered", err);
     logErrorMessage(err);
   }
@@ -347,7 +363,7 @@ export async function runtimeLogging(command: commander.Command) {
       await isRuntimeLoggingEnabled();
     }
     usageDataObject.reportSuccess("runtimeLogging");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("runtimeLogging", err);
     logErrorMessage(err);
   }
@@ -359,10 +375,11 @@ export async function sideload(manifestPath: string, type: string | undefined, c
     const canPrompt = true;
     const document: string | undefined = command.document ? command.document : undefined;
     const appType: AppType | undefined = parseAppType(type || process.env.npm_package_config_app_platform_to_debug);
+    const registration: string = command.registration;
 
-    await sideloadAddIn(manifestPath, app, canPrompt, appType, document);
+    await sideloadAddIn(manifestPath, app, canPrompt, appType, document, registration);
     usageDataObject.reportSuccess("sideload");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("sideload", err);
     logErrorMessage(err);
   }
@@ -384,7 +401,7 @@ export async function setSourceBundleUrl(manifestPath: string, command: commande
     console.log("Configured source bundle url.");
     displaySourceBundleUrl(await devSettings.getSourceBundleUrl(manifest.id!));
     usageDataObject.reportSuccess("setSourceBundleUrl()");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("setSourceBundleUrl()", err);
     logErrorMessage(err);
   }
@@ -403,7 +420,7 @@ export async function sourceBundleUrl(manifestPath: string, command: commander.C
       await getSourceBundleUrl(manifestPath);
     }
     usageDataObject.reportSuccess("sourceBundleUrl");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("sourceBundleUrl", err);
     logErrorMessage(err);
   }
@@ -427,7 +444,7 @@ function toDebuggingMethod(text?: string): devSettings.DebuggingMethod {
 
 export async function unregister(
   manifestPath: string,
-  command: commander.Command /* eslint-disable-line no-unused-vars */
+  command: commander.Command /* eslint-disable-line @typescript-eslint/no-unused-vars */
 ) {
   try {
     if (manifestPath === "all") {
@@ -436,7 +453,7 @@ export async function unregister(
       await devSettings.unregisterAddIn(manifestPath);
     }
     usageDataObject.reportSuccess("unregister");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("unregister", err);
     logErrorMessage(err);
   }
@@ -467,7 +484,7 @@ export async function webView(manifestPath: string, webViewString?: string) {
       webViewTypeName ? `The web view type is set to ${webViewTypeName}.` : "The web view type has not been set."
     );
     usageDataObject.reportSuccess("webView");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("webView", err);
     logErrorMessage(err);
   }

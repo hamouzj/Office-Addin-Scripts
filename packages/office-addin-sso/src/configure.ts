@@ -16,7 +16,7 @@ require("dotenv").config();
 export async function createNewApplication(
   ssoAppName: string,
   port: string,
-  userJson: Object /* eslint-disable-line no-unused-vars */
+  userJson: Object /* eslint-disable-line @typescript-eslint/no-unused-vars */
 ): Promise<Object> {
   try {
     let azRestCommand = await fs.readFileSync(defaults.azRestAppCreateCommandPath, "utf8");
@@ -54,7 +54,12 @@ export async function isAzureCliInstalled(): Promise<boolean> {
       case "win32": {
         const appsInstalledWindowsCommand: string = `powershell -ExecutionPolicy Bypass -File "${defaults.getInstalledAppsPath}"`;
         const appsWindows: any = await promiseExecuteCommand(appsInstalledWindowsCommand);
-        cliInstalled = appsWindows.filter((app) => app.DisplayName === "Microsoft Azure CLI").length > 0;
+        cliInstalled = appsWindows.filter((app) => {
+          if (app!==null && app.DisplayName && typeof app.DisplayName === "string"){
+            if (app.DisplayName.includes("Microsoft Azure CLI")) return true;
+          }
+          return false;
+        });
         // Send usage data
         usageDataObject.reportSuccess("isAzureCliInstalled()", {
           cliInstalled: cliInstalled,
@@ -148,14 +153,14 @@ export async function logIntoAzure(): Promise<Object> {
   );
   if (Object.keys(userJson).length < 1) {
     // Try alternate login
-    logoutAzure();
+    await logoutAzure();
     userJson = await promiseExecuteCommand("az login");
   }
   return userJson;
 }
 
 export async function logoutAzure(): Promise<Object> {
-  return await promiseExecuteCommand("az logout");
+  return await promiseExecuteCommand("az logout", true /* returnJson */, true /* expectError */);
 }
 
 async function promiseExecuteCommand(
@@ -182,9 +187,12 @@ async function promiseExecuteCommand(
   });
 }
 
-export async function setApplicationSecret(applicationJson: Object): Promise<string> {
+export async function setApplicationSecret(applicationJson: Object, secretTTL?: number): Promise<string> {
   try {
     let azRestCommand: string = await fs.readFileSync(defaults.azRestAddSecretCommandPath, "utf8");
+    let now = new Date();
+    let expirationDate = new Date(now.setDate(now.getDate() + secretTTL)).toISOString();
+    azRestCommand = azRestCommand.replace("<Token_Expire_Date>", expirationDate);
     azRestCommand = azRestCommand.replace("<App_Object_ID>", applicationJson["id"]);
     const secretJson: Object = await promiseExecuteCommand(azRestCommand);
     return secretJson["secretText"];
@@ -225,7 +233,7 @@ export async function setSignInAudience(applicationJson: Object): Promise<void> 
 
 export async function setSharePointTenantReplyUrls(tenantName: string): Promise<boolean> {
   try {
-    let servicePrinicipaObjectlId = "";
+    let servicePrinicipalObjectlId = "";
     let setReplyUrls: boolean = true;
     const sharePointServiceId: string = "57fb890c-0dab-4253-a5e0-7188c88b2bb4";
 
@@ -241,7 +249,7 @@ export async function setSharePointTenantReplyUrls(tenantName: string): Promise<
     // Check if SharePoint redirects are set for SharePoint principal
     for (let item of servicePrincipals) {
       if (item.appId === sharePointServiceId) {
-        servicePrinicipaObjectlId = item.objectId;
+        servicePrinicipalObjectlId = item.objectId;
         if (item.replyUrls.length === 0) {
           break;
           // if there are reply urls set, then we need to see if the SharePoint SSO reply urls are already set
@@ -256,16 +264,17 @@ export async function setSharePointTenantReplyUrls(tenantName: string): Promise<
       }
     }
 
-    if (setReplyUrls) {
+    if (setReplyUrls && servicePrinicipalObjectlId) {
       azRestCommand = fs.readFileSync(defaults.azRestAddTenantReplyUrlsCommandPath, "utf8");
       const reName = new RegExp("<TENANT-NAME>", "g");
-      azRestCommand = azRestCommand.replace(reName, tenantName).replace("<SP-OBJECTID>", servicePrinicipaObjectlId);
+      azRestCommand = azRestCommand.replace(reName, tenantName).replace("<SP-OBJECTID>", servicePrinicipalObjectlId);
       await promiseExecuteCommand(azRestCommand);
     }
 
     // Send usage data
     usageDataObject.reportSuccess("setTenantReplyUrls()", {
       isUserTenantAdmin: setReplyUrls,
+      isServicePrincipal: !!servicePrinicipalObjectlId,
     });
     return setReplyUrls;
   } catch (err) {
@@ -276,7 +285,7 @@ export async function setSharePointTenantReplyUrls(tenantName: string): Promise<
 
 export async function setOutlookTenantReplyUrl(): Promise<boolean> {
   try {
-    let servicePrinicipaObjectlId = "";
+    let servicePrinicipalObjectlId = "";
     let setReplyUrls: boolean = true;
     const outlookReplyUrl: string = "https://outlook.office.com/owa/extSSO.aspx";
     const outlookServiceId = "bc59ab01-8403-45c6-8796-ac3ef710b3e3";
@@ -288,7 +297,7 @@ export async function setOutlookTenantReplyUrl(): Promise<boolean> {
     // Check if Outlook redirects are set for Outlook principal
     for (let item of servicePrincipals) {
       if (item.appId === outlookServiceId) {
-        servicePrinicipaObjectlId = item.objectId;
+        servicePrinicipalObjectlId = item.objectId;
         if (item.replyUrls.length === 0) {
           break;
           // if there are reply urls set, then we need to see if the Outlook SSO reply urls are already set
@@ -303,15 +312,16 @@ export async function setOutlookTenantReplyUrl(): Promise<boolean> {
       }
     }
 
-    if (setReplyUrls) {
+    if (setReplyUrls && servicePrinicipalObjectlId) {
       azRestCommand = fs.readFileSync(defaults.azRestAddTenantOutlookReplyUrlsCommandPath, "utf8");
-      azRestCommand = azRestCommand.replace("<SP-OBJECTID>", servicePrinicipaObjectlId);
+      azRestCommand = azRestCommand.replace("<SP-OBJECTID>", servicePrinicipalObjectlId);
       await promiseExecuteCommand(azRestCommand);
     }
 
     // Send usage data
     usageDataObject.reportSuccess("setOutlookTenantReplyUrls()", {
       tenantReplyUrlsSet: setReplyUrls,
+      isServicePrincipal: !!servicePrinicipalObjectlId,
     });
     return setReplyUrls;
   } catch (err) {

@@ -3,11 +3,22 @@
 
 import * as fs from "fs-extra";
 import * as junk from "junk";
-import { getOfficeApps, getOfficeAppsForManifestHosts, OfficeApp, OfficeAddinManifest } from "office-addin-manifest";
+import {
+  exportMetadataPackage,
+  getOfficeApps,
+  getOfficeAppsForManifestHosts,
+  OfficeApp,
+  OfficeAddinManifest,
+  ManifestInfo,
+} from "office-addin-manifest";
 import * as os from "os";
 import * as path from "path";
 import { RegisteredAddin } from "./dev-settings";
 import { ExpectedError } from "office-addin-usage-data";
+import { registerWithTeams, uninstallWithTeams } from "./publish";
+import * as fspath from "path";
+
+/* global process */
 
 export async function getRegisteredAddIns(): Promise<RegisteredAddin[]> {
   const registeredAddins: RegisteredAddin[] = [];
@@ -38,9 +49,9 @@ function getSideloadDirectory(app: OfficeApp): string | undefined {
   }
 }
 
-export async function registerAddIn(manifestPath: string, officeApps?: OfficeApp[]) {
+export async function registerAddIn(manifestPath: string, officeApps?: OfficeApp[], registration?: string) {
   try {
-    const manifest = await OfficeAddinManifest.readManifestFile(manifestPath);
+    const manifest: ManifestInfo = await OfficeAddinManifest.readManifestFile(manifestPath);
 
     if (!officeApps) {
       officeApps = getOfficeAppsForManifestHosts(manifest.hosts);
@@ -54,6 +65,22 @@ export async function registerAddIn(manifestPath: string, officeApps?: OfficeApp
       throw new ExpectedError("The manifest file doesn't contain the id of the Office Add-in.");
     }
 
+    if (manifestPath.endsWith(".json")) {
+      if (!registration) {
+        const targetPath: string = fspath.join(os.tmpdir(), "manifest.zip");
+        const zipPath: string = await exportMetadataPackage(targetPath, manifestPath);
+        registration = await registerWithTeams(zipPath);
+      }
+
+      // TODO: Save registration in "OutlookSideloadManifestPath" as "TitleId"
+      // and add support for refreshing add-ins in Outlook via registry key
+
+    } else if (manifestPath.endsWith(".xml")) {
+      // TODO: Look for "Outlook" in manifests.hosts and enable outlook sideloading if there.
+      // and add support for refreshing add-ins in Outlook via registry key
+    }
+
+    // Save manifest path in "registry"
     for (const app of officeApps) {
       const sideloadDirectory = getSideloadDirectory(app);
 
@@ -70,10 +97,8 @@ export async function registerAddIn(manifestPath: string, officeApps?: OfficeApp
   }
 }
 
-export async function unregisterAddIn(manifestPath: string): Promise<void> {
-  const manifest = await OfficeAddinManifest.readManifestFile(manifestPath);
-
-  if (!manifest.id) {
+export async function unregisterAddIn(addinId: string, manifestPath: string): Promise<void> {
+  if (!addinId) {
     throw new ExpectedError("The manifest file doesn't contain the id of the Office Add-in.");
   }
 
@@ -82,8 +107,12 @@ export async function unregisterAddIn(manifestPath: string): Promise<void> {
   for (const registeredAddIn of registeredAddIns) {
     const registeredFileName = path.basename(registeredAddIn.manifestPath);
     const manifestFileName = path.basename(manifestPath);
-    const sideloadFileName = `${manifest.id!}.${manifestFileName}`;
-    if (registeredFileName === manifestFileName || registeredFileName === sideloadFileName) {
+
+    if (registeredFileName === manifestFileName || registeredFileName.startsWith(addinId)) {
+      if (!registeredFileName.endsWith(".xml")) {
+        uninstallWithTeams(registeredFileName.substring(registeredFileName.indexOf(".") + 1));
+        // TODO: Add support for refreshing add-ins in Outlook via registry key
+      }
       fs.unlinkSync(registeredAddIn.manifestPath);
     }
   }
@@ -93,6 +122,11 @@ export async function unregisterAllAddIns(): Promise<void> {
   const registeredAddIns = await getRegisteredAddIns();
 
   for (const registeredAddIn of registeredAddIns) {
+    const registeredFileName = path.basename(registeredAddIn.manifestPath);
+    if (!registeredFileName.endsWith(".xml")) {
+      uninstallWithTeams(registeredFileName.substring(registeredFileName.indexOf(".") + 1));
+        // TODO: Add support for refreshing add-ins in Outlook via registry key
+      }
     fs.unlinkSync(registeredAddIn.manifestPath);
   }
 }

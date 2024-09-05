@@ -21,9 +21,12 @@ function getInstallCommand(caCertificatePath: string, machine: boolean = false):
       } "${caCertificatePath}"`;
     }
     case "darwin": // macOS
-      return `sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain '${caCertificatePath}'`;
+      const prefix = machine ? "sudo " : ""
+      const keychainFile = machine ? "/Library/Keychains/System.keychain" : "~/Library/Keychains/login.keychain-db"
+      return `${prefix}security add-trusted-cert -d -r trustRoot -k ${keychainFile} '${caCertificatePath}'`;
     case "linux":
-      return `sudo mkdir -p /usr/local/share/ca-certificates/office-addin-dev-certs && sudo cp ${caCertificatePath} /usr/local/share/ca-certificates/office-addin-dev-certs && sudo /usr/sbin/update-ca-certificates`;
+      const script = path.resolve(__dirname, "../scripts/install_linux.sh");
+      return `sudo sh '${script}' '${caCertificatePath}'`;
     default:
       throw new ExpectedError(`Platform not supported: ${process.platform}`);
   }
@@ -31,6 +34,7 @@ function getInstallCommand(caCertificatePath: string, machine: boolean = false):
 
 export async function ensureCertificatesAreInstalled(
   daysUntilCertificateExpires: number = defaults.daysUntilCertificateExpires,
+  domains: string[] = defaults.domain,
   machine: boolean = false
 ) {
   try {
@@ -47,13 +51,14 @@ export async function ensureCertificatesAreInstalled(
         defaults.caCertificatePath,
         defaults.localhostCertificatePath,
         defaults.localhostKeyPath,
-        daysUntilCertificateExpires
+        daysUntilCertificateExpires,
+        domains
       );
       await installCaCertificate(defaults.caCertificatePath, machine);
     }
 
     usageDataObject.reportSuccess("ensureCertificatesAreInstalled()");
-  } catch (err) {
+  } catch (err: any) {
     usageDataObject.reportException("ensureCertificatesAreInstalled()", err);
     throw err;
   }
@@ -74,7 +79,7 @@ export async function installCaCertificate(
     console.log(
       `You now have trusted access to https://localhost.\nCertificate: ${defaults.localhostCertificatePath}\nKey: ${defaults.localhostKeyPath}`
     );
-  } catch (error) {
+  } catch (error: any) {
     throw new Error(`Unable to install the CA certificate. ${error.stderr.toString()}`);
   }
 }

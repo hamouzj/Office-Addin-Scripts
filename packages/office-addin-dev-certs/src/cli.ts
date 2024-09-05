@@ -4,7 +4,7 @@
 // Licensed under the MIT license.
 
 import * as commander from "commander";
-import { logErrorMessage } from "office-addin-cli";
+import { logErrorMessage } from "office-addin-usage-data";
 import * as commands from "./commands";
 import * as defaults from "./defaults";
 
@@ -19,6 +19,10 @@ commander
   .option(
     "--days <days>",
     `Specifies the validity of CA certificate in days. Default: ${defaults.daysUntilCertificateExpires}`
+  )
+  .option(
+    "--domains <domains>",
+    `List of IP address and domains separated by commas. Default: ${defaults.domain.join(",")}`
   )
   .description(`Generate an SSL certificate for "localhost" issued by a CA certificate which is installed.`)
   .action(commands.install);

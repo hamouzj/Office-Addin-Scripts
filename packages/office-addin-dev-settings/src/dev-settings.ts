@@ -15,7 +15,6 @@ const defaultRuntimeLogFileName = "OfficeAddins.log.txt";
 export { toWebViewTypeName } from "./dev-settings-windows";
 
 export enum DebuggingMethod {
-  /* eslint-disable no-unused-vars */
   Direct,
   Proxy,
   /** @deprecated use Proxy */
@@ -23,7 +22,6 @@ export enum DebuggingMethod {
 }
 
 export enum WebViewType {
-  /* eslint-disable no-unused-vars */
   Default = "Default",
   IE = "IE",
   Edge = "Edge",
@@ -226,12 +224,11 @@ export async function isLiveReloadEnabled(addinId: string): Promise<boolean> {
   }
 }
 
-export async function registerAddIn(manifestPath: string): Promise<void> {
+export async function registerAddIn(manifestPath: string, registration?: string): Promise<void> {
   switch (process.platform) {
     case "win32": {
-      const manifest = await OfficeAddinManifest.readManifestFile(manifestPath);
       const realManifestPath = fs.realpathSync(manifestPath);
-      return devSettingsWindows.registerAddIn(manifest.id || "", realManifestPath);
+      return devSettingsWindows.registerAddIn(realManifestPath, registration);
     }
     case "darwin":
       return devSettingsMac.registerAddIn(manifestPath);
@@ -259,11 +256,11 @@ export async function setWebView(addinId: string, webViewType: WebViewType | und
 }
 
 export async function unregisterAddIn(manifestPath: string): Promise<void> {
+  const manifest = await OfficeAddinManifest.readManifestFile(manifestPath);
   switch (process.platform) {
     case "darwin":
-      return devSettingsMac.unregisterAddIn(manifestPath);
+      return devSettingsMac.unregisterAddIn(manifest.id || "", manifestPath);
     case "win32": {
-      const manifest = await OfficeAddinManifest.readManifestFile(manifestPath);
       const realManifestPath = fs.realpathSync(manifestPath);
       return devSettingsWindows.unregisterAddIn(manifest.id || "", realManifestPath);
     }

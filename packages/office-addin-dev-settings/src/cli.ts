@@ -4,7 +4,7 @@
 // Licensed under the MIT license.
 
 import * as commander from "commander";
-import { logErrorMessage } from "office-addin-cli";
+import { logErrorMessage } from "office-addin-usage-data";
 import * as commands from "./commands";
 
 /* global process, console */
@@ -42,6 +42,11 @@ commander
   .action(commands.liveReload);
 
 commander
+  .command("m365-account <operation>")
+  .description("Update the M365 account used for registration.")
+  .action(commands.m365Account);
+
+commander
   .command("register <manifest-path>")
   .description("Register the Office Add-in for development.")
   .action(commands.register);
@@ -63,6 +68,7 @@ commander
   .description("Launch Office with the Office Add-in loaded.")
   .option("-a,--app <app>", `The Office app to launch. ("Excel", "Outlook", "PowerPoint", or "Word")`)
   .option("-d,--document <document>", `The file path or url of the Office document to open.`)
+  .option("--registration <registration>", `Id of the registered add-in`)
   .action(commands.sideload)
   .on("--help", () => {
     console.log("\n[app-type] specifies the type of Office app::\n");
