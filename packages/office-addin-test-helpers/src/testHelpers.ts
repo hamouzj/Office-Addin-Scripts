@@ -18,13 +18,42 @@ export async function pingTestServer(port: number = defaultPort): Promise<object
   }
 }
 
-export async function sendTestResults(data: object, port: number = defaultPort): Promise<boolean> {
-  const url: string = `https://localhost:${port}/results/`;
+export async function sendTestResult(data: object, port: number = defaultPort): Promise<boolean> {
+  const url: string = `https://localhost:${port}/testResult/`;
 
   try {
     fetch(url, {
       method: "post",
       body: JSON.stringify(data),
+      headers: { "Content-Type": "application/json" },
+    });
+    return Promise.resolve(true);
+  } catch (err) {
+    return Promise.reject(false);
+  }
+}
+
+export async function sendTestSuites(data: object, port: number = defaultPort): Promise<boolean> {
+  const url: string = `https://localhost:${port}/testSuites/`;
+
+  try {
+    fetch(url, {
+      method: "post",
+      body: JSON.stringify(data),
+      headers: { "Content-Type": "application/json" },
+    });
+    return Promise.resolve(true);
+  } catch (err) {
+    return Promise.reject(false);
+  }
+}
+
+export async function sendTestCompletion(port: number = defaultPort): Promise<boolean> {
+  const url: string = `https://localhost:${port}/testCompletion/`;
+
+  try {
+    fetch(url, {
+      method: "post",
       headers: { "Content-Type": "application/json" },
     });
     return Promise.resolve(true);
